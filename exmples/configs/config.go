@@ -1,7 +1,7 @@
 // author: luokuanxing <346300265@qq.com>
 // date: 2022/7/16
 
-package main
+package configs
 
 func GetConfig() map[string]string {
 	config := make(map[string]string)

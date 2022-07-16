@@ -19,15 +19,15 @@ import (
 )
 
 const (
-	WebsocketStatusOnline  = 1
-	WebsocketStatusOffline = 0
-	UnKnowMessageType      = -1
-	ExpireAlways           = 0
+	WebsocketStatusOnline  = 1  // websocket服务在线中
+	WebsocketStatusOffline = 0  // websocket服务不在线
+	UnKnowMessageType      = -1 // 未知消息类型
+	ExpireAlways           = 0  // 一直有效
 )
 
 type WebSocket struct {
 	conn           *websocket.Conn                         // websocket连接
-	config         map[string]string                       //配置项
+	config         map[string]string                       // 配置项
 	reconnect      bool                                    // 断线是否自动重连
 	status         int                                     // 当前连接状态
 	isLock         bool                                    // 当前锁状态

@@ -45,6 +45,10 @@ type WebSocket struct {
 	expireTime     int                                     // 有效检测时间（秒）
 }
 
+func (o *WebSocket) GetConn() *websocket.Conn {
+	return o.conn
+}
+
 func (o *WebSocket) SetConfig(config map[string]string) *WebSocket {
 	o.config = config
 	return o

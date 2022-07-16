@@ -3,13 +3,15 @@
 
 package main
 
+import websocket "websocket-client"
+
 func main() {
 	// 创建webSocket实例P
-	webSocket := NewWebsocket()
+	webSocket := websocket.NewWebsocket()
 
 	// 设置
 	webSocket.SetConfig(GetConfig())
-	webSocket.SetMessageHandlerFunc(func(socket *WebSocket, message []byte) {
+	webSocket.SetMessageHandlerFunc(func(socket *websocket.WebSocket, message []byte) {
 
 	})
 	// 运行

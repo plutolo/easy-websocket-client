@@ -1,7 +1,7 @@
 // author: luokuanxing <346300265@qq.com>
 // date: 2022/7/15
 
-package main
+package websocket
 
 import (
 	"errors"

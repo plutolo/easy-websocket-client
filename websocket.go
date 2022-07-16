@@ -31,7 +31,7 @@ type WebSocket struct {
 	reconnect      bool                                    // 断线是否自动重连
 	status         int                                     // 当前连接状态
 	isLock         bool                                    // 当前锁状态
-	lock           sync.Mutex                              // 锁
+	locker         sync.Mutex                              // 锁
 	addr           string                                  // 连接地址
 	path           string                                  // 路径
 	interrupt      chan os.Signal                          // 中断/关闭处理
@@ -54,29 +54,33 @@ func (o *WebSocket) GetConfig() map[string]string {
 	return o.config
 }
 
+func (o *WebSocket) WriteErrorMsg(errorMsg string) {
+	o.errs <- errorMsg
+}
+
 // NewWebsocket 实例化WebSocket
 func NewWebsocket() *WebSocket {
 	o := &WebSocket{}
 	return o
 }
 
-// Lock 加锁
-func (o *WebSocket) Lock() {
-	o.lock.Lock()
+// lock 加锁
+func (o *WebSocket) lock() {
+	o.locker.Lock()
 	o.isLock = true
 }
 
-// UnLock 解锁
-func (o *WebSocket) UnLock() {
-	o.lock.Unlock()
+// unLock 解锁
+func (o *WebSocket) unLock() {
+	o.locker.Unlock()
 	o.isLock = false
 }
 
-// Initialize 初始化
-func (o *WebSocket) Initialize() *WebSocket {
+// initialize 初始化
+func (o *WebSocket) initialize() *WebSocket {
 	log.SetFlags(0)
 
-	o.lock = sync.Mutex{}
+	o.locker = sync.Mutex{}
 	o.interrupt = make(chan os.Signal, 1)
 	o.message = make(chan []byte)
 	o.errs = make(chan string)
@@ -96,8 +100,8 @@ func (o *WebSocket) Initialize() *WebSocket {
 	return o
 }
 
-// StopTicker 关闭定时器
-func (o *WebSocket) StopTicker() *WebSocket {
+// stopTicker 关闭定时器
+func (o *WebSocket) stopTicker() *WebSocket {
 	o.ticker.Stop()
 	return o
 }
@@ -106,19 +110,19 @@ func (o *WebSocket) StopTicker() *WebSocket {
 func (o *WebSocket) NewClient() {
 	var err error
 
-	o.Lock()
-	defer o.UnLock()
+	o.lock()
+	defer o.unLock()
 
 	i := 0
 	for {
 		if o.expireTime != ExpireAlways && i > o.expireTime {
 			break
 		}
-		o.conn, err = o.CreateClient()
+		o.conn, err = o.createClient()
 		if err != nil {
 			time.Sleep(time.Second)
 		} else {
-			o.SetPongHandler(o.PongHandler)
+			o.setPongHandler(o.pongHandler)
 			break
 		}
 		i++
@@ -128,8 +132,8 @@ func (o *WebSocket) NewClient() {
 
 }
 
-// CreateClient 创建连接
-func (o *WebSocket) CreateClient() (*websocket.Conn, error) {
+// createClient 创建连接
+func (o *WebSocket) createClient() (*websocket.Conn, error) {
 	var err error
 	config := o.GetConfig()
 	u := url.URL{Scheme: "ws", Host: config["HOST"] + ":" + config["PORT"], Path: config["PATH"]}
@@ -144,8 +148,8 @@ func (o *WebSocket) CreateClient() (*websocket.Conn, error) {
 	return o.conn, nil
 }
 
-// ReadMessage 读消息
-func (o *WebSocket) ReadMessage() *WebSocket {
+// readMessage 读消息
+func (o *WebSocket) readMessage() *WebSocket {
 	go func() {
 		defer func() {
 			close(o.done)
@@ -210,8 +214,8 @@ func (o *WebSocket) ErrHandler() {
 	}(o)
 }
 
-// Expire 发送有效通道消息
-func (o *WebSocket) Expire() {
+// expireHandler ping <==> pong 有效消息检测
+func (o *WebSocket) expireHandler() {
 	go func(socket *WebSocket) {
 		var i = 0
 		for {
@@ -239,14 +243,14 @@ func (o *WebSocket) Expire() {
 	}(o)
 }
 
-// PongHandler pong消息处理器
-func (o *WebSocket) PongHandler(appData string) error {
+// pongHandler pong消息处理器
+func (o *WebSocket) pongHandler(appData string) error {
 	o.expire <- true
 	return nil
 }
 
-// Ping 发送ping消息
-func (o *WebSocket) Ping() {
+// ping 发送ping消息
+func (o *WebSocket) ping() {
 	go func(o *WebSocket) {
 		for {
 			select {
@@ -265,8 +269,8 @@ func (o *WebSocket) Ping() {
 	}(o)
 }
 
-// InterruptHandler 中断/关闭处理器
-func (o *WebSocket) InterruptHandler() {
+// interruptHandler 中断/关闭处理器
+func (o *WebSocket) interruptHandler() {
 	go func(o *WebSocket) {
 		for {
 			select {
@@ -293,8 +297,8 @@ func (o *WebSocket) InterruptHandler() {
 	}(o)
 }
 
-// Start 健康检查
-func (o *WebSocket) Start() {
+// start 健康检查
+func (o *WebSocket) start() {
 	go func(o *WebSocket) {
 		o.NewClient()
 		for {
@@ -313,12 +317,12 @@ func (o *WebSocket) Start() {
 }
 
 // SetPongHandler 设置Pong消息处理器
-func (o *WebSocket) SetPongHandler(fun func(appData string) error) {
+func (o *WebSocket) setPongHandler(fun func(appData string) error) {
 	o.conn.SetPongHandler(fun)
 }
 
-// CloseConn 关闭连接
-func (o *WebSocket) CloseConn() {
+// closeConn 关闭连接
+func (o *WebSocket) closeConn() {
 	if o.conn != nil {
 		o.conn.Close()
 	}
@@ -333,31 +337,31 @@ func (o *WebSocket) WriteMessage(messageType int, message []byte) error {
 	return err
 }
 
-// DefaultMessageHandlerFunc 默认消息处理器
-func DefaultMessageHandlerFunc(socket *WebSocket, message []byte) {
+// defaultMessageHandlerFunc 默认消息处理器
+func defaultMessageHandlerFunc(socket *WebSocket, message []byte) {
 	fmt.Printf("%s\n", string(message))
 }
 
 func (o *WebSocket) Run() *WebSocket {
 	// 初始化
-	o.Initialize()
+	o.initialize()
 
 	// 健康检查
-	o.Start()
+	o.start()
 
 	// 设置消息默认处理方法
 	if o.GetMessageHandlerFunc() == nil {
-		o.SetMessageHandlerFunc(DefaultMessageHandlerFunc)
+		o.SetMessageHandlerFunc(defaultMessageHandlerFunc)
 	}
 
 	// 发送Ping消息
-	o.Ping()
+	o.ping()
 
 	// 断电关闭
-	o.InterruptHandler()
+	o.interruptHandler()
 
 	// 读取消息
-	o.ReadMessage()
+	o.readMessage()
 
 	// 处理普通消息
 	o.ExecMessage()
@@ -366,13 +370,13 @@ func (o *WebSocket) Run() *WebSocket {
 	o.ErrHandler()
 
 	// ping-pong 有效检测
-	o.Expire()
+	o.expireHandler()
 
 	// 关闭连接
-	defer o.CloseConn()
+	defer o.closeConn()
 
 	// 关闭定时器
-	defer o.StopTicker()
+	defer o.stopTicker()
 
 	for {
 		exit, ok := <-o.exit

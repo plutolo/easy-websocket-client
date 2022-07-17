@@ -4,7 +4,8 @@
 package main
 
 import (
-	websocket "github.com/plutolo/easy-websocket-client"
+	"github.com/golang/glog"
+	websocket "websocket-client"
 )
 
 func GetConfig() map[string]string {
@@ -19,16 +20,23 @@ func GetConfig() map[string]string {
 
 }
 
+func messageHandler(webSocket *websocket.WebSocket, message []byte) {
+	if string(message) != "连接成功" {
+		glog.Infof("收到消息: %s，正在处理...", message)
+		//
+	} else {
+		glog.Infof("连接成功")
+	}
+}
+
 func main() {
 	// 创建webSocket实例P
 	webSocket := websocket.NewWebsocket()
 
-	// 设置
 	webSocket.SetConfig(GetConfig())
-	webSocket.SetMessageHandlerFunc(func(socket *websocket.WebSocket, message []byte) {
 
-	})
-	// 运行
+	webSocket.SetMessageHandler(messageHandler)
+
 	webSocket.Run()
 
 }
